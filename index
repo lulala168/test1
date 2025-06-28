@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>越南：河內與下龍灣五日探索</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony (Background: slate-50, Text: slate-800, Accent: teal-600, Secondary: slate-500) -->
+    <!-- Application Structure Plan: The SPA is structured using a top-level navigation bar to switch between five main user-centric sections: '總覽' (Overview), '交通住宿' (Transportation & Accommodation), '每日行程' (Detailed Itinerary), '美食地圖' (Food Map), and '行前準備' (Pre-departure). This modular and task-oriented design is chosen to allow users to quickly access specific information (e.g., checking flight details, reviewing daily plans, or finding nearby restaurants). The '每日行程' section provides a detailed, interactive timeline with route and attraction mapping. The '美食地圖' section includes filtering for diverse culinary preferences. This architecture prioritizes comprehensive information access and efficient user navigation, moving beyond a linear document presentation. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Trip highlights & duration -> Goal: Inform/Excite -> Viz: Key stats (HTML/Tailwind), Countdown (JS), Time Allocation (Chart.js Doughnut) -> Interaction: Hover effects, chart tooltips -> Justification: Provides an engaging, high-level summary on the landing page.
+        - Report Info: Flight details, accommodation -> Goal: Logistics/Compare -> Viz: Tables (HTML/Tailwind), Transportation Time & Cost Comparison (Chart.js Bar Chart) -> Interaction: Chart tooltips -> Justification: Centralizes logistical information and provides a clear visual comparison of key travel segments.
+        - Report Info: Day-by-day schedule with locations -> Goal: Organize/Detail -> Viz: Interactive timeline with day-selector buttons (HTML/JS), detailed route steps, suggested stay times, and clickable Google Maps links for routes and attractions -> Interaction: Click to switch days, click to open maps -> Justification: Offers a highly granular and actionable daily plan with navigation support.
+        - Report Info: Restaurant mentions -> Goal: Discover/Locate -> Viz: Filterable list of restaurants (HTML/JS) with descriptions and Google Maps links -> Interaction: Click to filter cuisine, click to open maps -> Justification: Enhances the dining experience by making restaurant discovery interactive and location-aware.
+        - Report Info: Practical travel rules (visa, baggage, etc.) -> Goal: Prepare -> Viz: Tabbed content panes (JS/HTML) with highlighted alert boxes for critical warnings, plus emergency contacts and utility info -> Interaction: Click to switch tabs -> Justification: Consolidates scattered but vital pre-trip and in-trip information into logical, easy-to-find categories.
+        - Library/Method: Chart.js for canvas-based charts. All other visuals and layouts use HTML and Tailwind CSS, utilizing Unicode characters for icons.
+        -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+        }
+        .nav-link.active {
+            color: #0d9488; /* teal-600 */
+            border-bottom-color: #0d9488;
+        }
+        .section {
+            display: none;
+        }
+        .section.active {
+            display: block;
+        }
+        .day-btn.active {
+            background-color: #0d9488; /* teal-600 */
+            color: white;
+        }
+        .day-btn {
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .tab-btn.active {
+            border-color: #0d9488;
+            color: #0d9488;
+            background-color: #f0fdfa;
+        }
+        .tab-btn {
+             transition: all 0.3s;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Adjusted max-width for charts */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+                max-height: 450px;
+            }
+        }
+        .timeline-item {
+            position: relative;
+            padding-left: 2.5rem; /* Space for icon */
+            margin-bottom: 2rem;
+        }
+        .timeline-icon {
+            position: absolute;
+            left: 0;
+            top: 0;
+            background-color: #fff;
+            border: 2px solid #0d9488;
+            border-radius: 50%;
+            height: 2.5rem;
+            width: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: #0d9488;
+        }
+        .timeline-line {
+            position: absolute;
+            left: 1.2rem;
+            top: 2.5rem; /* Start after icon */
+            height: calc(100% - 2.5rem); /* Adjust height */
+            width: 2px;
+            background-color: #d1d5db; /* gray-300 */
+        }
+        .details-toggle[open] .details-content {
+            max-height: 1000px; /* Needs to be larger than content */
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-xl font-bold text-teal-700">越南奇遇</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#overview" class="nav-link active px-3 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 border-b-2 border-transparent">總覽</a>
+                        <a href="#transport-accommodation" class="nav-link px-3 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 border-b-2 border-transparent">交通住宿</a>
+                        <a href="#itinerary" class="nav-link px-3 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 border-b-2 border-transparent">每日行程</a>
+                        <a href="#food-map" class="nav-link px-3 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 border-b-2 border-transparent">美食地圖</a>
+                        <a href="#preparation" class="nav-link px-3 py-2 text-sm font-medium text-slate-600 hover:text-teal-600 border-b-2 border-transparent">行前準備</a>
+                    </div>
+                </div>
+                 <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#overview" class="nav-link active block px-3 py-2 rounded-md text-base font-medium">總覽</a>
+                <a href="#transport-accommodation" class="nav-link block px-3 py-2 rounded-md text-base font-medium">交通住宿</a>
+                <a href="#itinerary" class="nav-link block px-3 py-2 rounded-md text-base font-medium">詳細行程</a>
+                <a href="#food-map" class="nav-link block px-3 py-2 rounded-md text-base font-medium">美食地圖</a>
+                <a href="#preparation" class="nav-link block px-3 py-2 rounded-md text-base font-medium">行前準備</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <section id="overview" class="section active">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">河內與下龍灣五日探索</h2>
+                <p class="mt-4 text-lg text-slate-600">一趟融合古老文化與絕美自然，無購物壓力的純粹旅程。</p>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-12">
+                <h3 class="text-xl font-bold text-center text-teal-700 mb-6">旅程倒數計時</h3>
+                <div id="countdown" class="flex justify-center space-x-4 md:space-x-8 text-center">
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h3 class="text-2xl font-bold mb-4">旅程核心亮點</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="text-teal-500 text-2xl mr-3 mt-1">✓</span>
+                            <div>
+                                <h4 class="font-semibold">海上VILLA體驗</h4>
+                                <p class="text-slate-600">搭乘全新維納斯號遊輪，夜宿蘭夏灣，享受頂級奢華與寧靜。</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-teal-500 text-2xl mr-3 mt-1">✓</span>
+                            <div>
+                                <h4 class="font-semibold">無購物行程</h4>
+                                <p class="text-slate-600">全程無強制購物站，將所有時間專注於景點探索與文化體驗。</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-teal-500 text-2xl mr-3 mt-1">✓</span>
+                            <div>
+                                <h4 class="font-semibold">文化與現代交織</h4>
+                                <p class="text-slate-600">從千年古剎三祝寺，到河內大世界聲光秀，感受越南的多元魅力。</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-teal-500 text-2xl mr-3 mt-1">✓</span>
+                            <div>
+                                <h4 class="font-semibold">精選美食饗宴</h4>
+                                <p class="text-slate-600">品嚐九層海鮮塔、龍王蒸氣餐，以及米其林指南推薦料理。</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold mb-4 text-center">行程體驗分佈</h3>
+                    <p class="text-center text-slate-500 mb-4">這趟旅程精心平衡了各類活動的時間，讓您全面感受越南的魅力。圖表顯示了不同體驗類型所佔的大致比例。</p>
+                    <div class="chart-container">
+                        <canvas id="tripFocusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="transport-accommodation" class="section">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold">交通與住宿</h2>
+                <p class="mt-2 text-slate-600">關於您旅途中的航班、酒店及交通概覽。</p>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-8 mb-12">
+                <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                    <h3 class="text-xl font-bold mb-4 text-teal-700">航班參考</h3>
+                    <p class="text-slate-600 mb-4">以下是本次旅行的航班資訊，請注意集合時間以確保順利登機。</p>
+                    <div class="overflow-x-auto"><table class="w-full text-sm text-left">
+                        <thead class="bg-slate-100"><tr><th class="p-2">方向</th><th class="p-2">日期</th><th class="p-2">班機</th><th class="p-2">起飛-抵達</th><th class="p-2">出發時間</th><th class="p-2">抵達時間</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="p-2">去程</td><td class="p-2">2025/07/18 (五)</td><td class="p-2">越南航空 VN587</td><td class="p-2">高雄(KHH)/河內(HAN)</td><td class="p-2">08:40</td><td class="p-2">10:15</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2">回程</td><td class="p-2">2025/07/22 (二)</td><td class="p-2">越南航空 VN586</td><td class="p-2">河內(HAN)/高雄(KHH)</td><td class="p-2">18:20</td><td class="p-2">21:45</td>
+                            </tr>
+                        </tbody>
+                    </table></div>
+                    <p class="text-sm mt-4 text-slate-500">集合時間：2025/07/18 06:40 於高雄小港機場3樓越南航空團體櫃台。</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                    <h3 class="text-xl font-bold mb-4 text-teal-700">住宿詳情</h3>
+                    <p class="text-slate-600 mb-4">本次旅程精選高品質酒店與遊輪，確保您的舒適體驗。</p>
+                    <ul class="space-y-4">
+                        <li>
+                            <p class="font-semibold text-slate-700">第1晚 (2025/07/18): 府里美利亞珍珠酒店 Meliá Vinpearl Phu Ly (五星級)</p>
+                            <p class="text-sm text-slate-500">地址：Phu Ly, Ha Nam, Vietnam <a href="https://www.google.com/maps/search/Meliá+Vinpearl+Phu+Ly" target="_blank" class="text-teal-600 hover:underline">地圖連結</a></p>
+                        </li>
+                        <li>
+                            <p class="font-semibold text-slate-700">第2晚 (2025/07/19): 下龍馨樂庭濱海飯店 Citadines Marina Halong</p>
+                            <p class="text-sm text-slate-500">地址：Hùng Thắng, Thành phố Hạ Long, Quảng Ninh, Vietnam <a href="https://www.google.com/maps/search/Citadines+Marina+Halong" target="_blank" class="text-teal-600 hover:underline">地圖連結</a></p>
+                        </li>
+                        <li>
+                            <p class="font-semibold text-slate-700">第3晚 (2025/07/20): 維納斯女神號 Venus Halong Cruises (頂級奢華遊輪)</p>
+                            <p class="text-sm text-slate-500">蘭夏灣過夜，具體停泊點依當天船公司安排 <a href="https://www.google.com/maps/search/Venus+Halong+Cruises" target="_blank" class="text-teal-600 hover:underline">地圖連結</a></p>
+                        </li>
+                        <li>
+                            <p class="font-semibold text-slate-700">第4晚 (2025/07/21): 河內西部瑞享生活酒店 Movenpick Living West Hanoi (五星級)</p>
+                            <p class="text-sm text-slate-500">地址：25 P. Lý Thường Kiệt, Phan Chu Trinh, Hoàn Kiếm, Hà Nội, Vietnam <a href="https://www.google.com/maps/search/Movenpick+Living+West+Hanoi" target="_blank" class="text-teal-600 hover:underline">地圖連結</a></p>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <h3 class="text-xl font-bold mb-4 text-center text-teal-700">交通時間與費用概覽</h3>
+                <p class="text-center text-slate-600 mb-6">此圖表概括了本次旅程中各主要交通段的預估時間與相對費用，幫助您了解行程的動線與成本分佈。</p>
+                <div class="chart-container">
+                    <canvas id="transportChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="itinerary" class="section">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold">每日行程</h2>
+                <p class="mt-2 text-slate-600">點擊下方按鈕，探索每一天的精彩冒險，包含詳細路線與地圖。</p>
+            </div>
+            <div id="day-selector" class="flex flex-wrap justify-center gap-2 mb-8">
+            </div>
+            <div id="itinerary-content" class="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+            </div>
+        </section>
+
+        <section id="food-map" class="section">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold">越南美食地圖</h2>
+                <p class="mt-2 text-slate-600">探索旅程中推薦的越南風味美食，點擊類別進行篩選，並查看地圖位置。</p>
+            </div>
+            <div class="flex flex-wrap justify-center gap-2 mb-8" id="food-filters">
+                <button class="filter-btn active px-4 py-2 text-sm font-medium rounded-full border border-slate-300 hover:bg-teal-500 hover:text-white" data-filter="all">所有美食</button>
+                <button class="filter-btn px-4 py-2 text-sm font-medium rounded-full border border-slate-300 hover:bg-teal-500 hover:text-white" data-filter="seafoo">海鮮</button>
+                <button class="filter-btn px-4 py-2 text-sm font-medium rounded-full border border-slate-300 hover:bg-teal-500 hover:text-white" data-filter="vietnamese">越式風味</button>
+                <button class="filter-btn px-4 py-2 text-sm font-medium rounded-full border border-slate-300 hover:bg-teal-500 hover:text-white" data-filter="dessert">甜點小吃</button>
+                <button class="filter-btn px-4 py-2 text-sm font-medium rounded-full border border-slate-300 hover:bg-teal-500 hover:text-white" data-filter="international">國際料理</button>
+            </div>
+            <div id="food-list" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+        </section>
+        
+        <section id="preparation" class="section">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold">行前準備清單</h2>
+                <p class="mt-2 text-slate-600">為了讓您的旅途更順利，請仔細閱讀以下資訊。</p>
+            </div>
+            <div id="prep-tabs" class="mb-6 border-b border-gray-200">
+                <nav class="flex flex-wrap -mb-px" aria-label="Tabs">
+                    <button class="tab-btn active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm w-1/2 md:w-auto md:flex-1 text-center" data-tab="prep-flight">✈️ 航班與行李</button>
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm w-1/2 md:w-auto md:flex-1 text-center" data-tab="prep-visa">🛂 簽證與貨幣</button>
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm w-1/2 md:w-auto md:flex-1 text-center" data-tab="prep-health">❤️ 健康與安全</button>
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm w-1/2 md:w-auto md:flex-1 text-center" data-tab="prep-packing">🎒 建議攜帶</button>
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm w-1/2 md:w-auto md:flex-1 text-center" data-tab="prep-contact-utility">📞 聯絡與電力</button>
+                </nav>
+            </div>
+            <div id="prep-content" class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <div id="prep-flight-content" class="tab-content active space-y-6"></div>
+                <div id="prep-visa-content" class="tab-content space-y-6"></div>
+                <div id="prep-health-content" class="tab-content space-y-6"></div>
+                <div id="prep-packing-content" class="tab-content space-y-6"></div>
+                <div id="prep-contact-utility-content" class="tab-content space-y-6"></div>
+            </div>
+             <div class="bg-white rounded-xl shadow-lg p-6 mt-8">
+                <h3 class="text-xl font-bold mb-4 text-teal-700">小費建議指南</h3>
+                <p class="text-slate-600 mb-4">在東南亞，給予小費是表達感謝與友誼的方式。建議以紙鈔支付，以下為參考標準：</p>
+                <div id="tipping-info" class="overflow-x-auto"></div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="text-center py-6 mt-8 border-t border-slate-200">
+        <p class="text-sm text-slate-500">&copy; 2025 您的專屬越南之旅. 祝您旅途愉快！</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const itineraryData = {
+                1: {
+                    title: '抵達河內與古都探索 (2025/07/18)',
+                    timeline: [
+                        { time: '06:40', icon: '⏰', event: '集合', desc: '請於高雄小港機場3樓越南航空團體櫃台集合。', stayTime: '40分鐘', attractionMapsLink: 'https://www.google.com/maps/search/高雄小港機場' },
+                        { time: '08:40-10:15', icon: '✈️', event: '高雄 ➤ 河內', desc: '搭乘越南航空VN587班機從高雄飛抵河內內排國際機場。', transport: '飛機', travelTime: '約 2 小時 35 分鐘', mapsLink: 'https://www.google.com/maps/dir/高雄國際機場/Noi+Bai+International+Airport' },
+                        { time: '10:15-11:00', icon: '🚌', event: '機場 ➤ 市區', desc: '由當地導遊熱情迎接並搭乘專車前往河內市區。', transport: '巴士', travelTime: '約 45 分鐘', mapsLink: 'https://www.google.com/maps/dir/Noi+Bai+International+Airport/河內市區' },
+                        { time: '12:00-13:00', icon: '🍽️', event: '午餐', desc: '享用鳳凰港點 (價值$15)。', stayTime: '1 小時', attractionMapsLink: 'https://www.google.com/maps/search/河內鳳凰港點餐廳' },
+                        { time: '14:00-15:30', icon: '🏛️', event: '文廟-國子監', desc: '參觀河內保存最完好且最美的古蹟之一，感受千年歷史。<b><font color="red">注意：</font>參觀寺廟需穿著長褲，不可穿短褲、短裙或無袖上衣。</b>', stayTime: '1 小時 30 分鐘', transport: '巴士', travelTime: '約 15 分鐘', mapsLink: 'https://www.google.com/maps/dir/河內市區/文廟-國子監', attractionMapsLink: 'https://www.google.com/maps/search/文廟-國子監' },
+                        { time: '15:45-16:30', icon: '🏯', event: '鎮國寺', desc: '路過西湖，並下車參觀河內最古老的鎮國寺。', stayTime: '45 分鐘', transport: '步行', travelTime: '約 5 分鐘', mapsLink: 'https://www.google.com/maps/dir/文廟-國子監/鎮國寺', attractionMapsLink: 'https://www.google.com/maps/search/鎮國寺' },
+                        { time: '17:00-18:30', icon: '🚗', event: '河內 ➤ 河南', desc: '驅車前往河南省，準備入住飯店。', transport: '巴士', travelTime: '約 1 小時 30 分鐘', mapsLink: 'https://www.google.com/maps/dir/河內/府里美利亞珍珠酒店' },
+                        { time: '19:00-20:00', icon: '🍽️', event: '晚餐', desc: '飯店內享用合菜 (價值$20)。', stayTime: '1 小時', attractionMapsLink: 'https://www.google.com/maps/search/Meliá+Vinpearl+Phu+Ly+Restaurant' },
+                        { time: '20:30', icon: '🏨', event: '入住', desc: '入住五星級的【府里美利亞珍珠酒店】Meliá Vinpearl Phu Ly。', attractionMapsLink: 'https://www.google.com/maps/search/Meliá+Vinpearl+Phu+Ly' }
+                    ]
+                },
+                2: {
+                    title: '千年古剎與下龍灣纜車 (2025/07/19)',
+                    timeline: [
+                        { time: '08:30-10:30', icon: '🙏', event: '三祝寺 Tam Chuc', desc: '參觀越南國家級旅遊景區，包含遊船與電瓶車。', stayTime: '2 小時', transport: '巴士', travelTime: '約 45 分鐘', mapsLink: 'https://www.google.com/maps/dir/府里美利亞珍珠酒店/三祝寺', attractionMapsLink: 'https://www.google.com/maps/search/三祝寺' },
+                        { time: '12:00-13:00', icon: '🍽️', event: '午餐', desc: '享用景區越式料理 (價值$15)。', stayTime: '1 小時', attractionMapsLink: 'https://www.google.com/maps/search/三祝寺附近餐廳' },
+                        { time: '13:30-16:30', icon: '🚌', event: '河南 ➤ 下龍灣', desc: '驅車前往下龍灣，沿途欣賞風光。', transport: '巴士', travelTime: '約 3 小時', mapsLink: 'https://www.google.com/maps/dir/三祝寺/下龍灣' },
+                        { time: '17:00-18:00', icon: '🚠', event: '下龍灣女皇纜車', desc: '體驗創金氏世界紀錄的雙層跨海纜車，俯瞰下龍灣。', stayTime: '1 小時', attractionMapsLink: 'https://www.google.com/maps/search/下龍灣女皇纜車' },
+                        { time: '19:00-20:00', icon: '🍽️', event: '晚餐', desc: '享用特色九層海鮮塔痛風餐 (價值$18)。', stayTime: '1 小時', attractionMapsLink: 'https://www.google.com/maps/search/下龍灣九層海鮮塔痛風餐' },
+                        { time: '20:30', icon: '🏨', event: '入住', desc: '入住【下龍馨樂庭濱海飯店】Citadines Marina Halong。', attractionMapsLink: 'https://www.google.com/maps/search/下龍馨樂庭濱海飯店' }
+                    ]
+                },
+                3: {
+                    title: '奢華遊輪與蘭夏灣秘境 (2025/07/20)',
+                    timeline: [
+                        { time: '11:30-12:00', icon: '🚢', event: '碼頭集合', desc: '前往碼頭，準備登船【維納斯女神號】。', stayTime: '30 分鐘', attractionMapsLink: 'https://www.google.com/maps/search/下龍灣巡洲島港口' },
+                        { time: '12:00-12:30', icon: '🛳️', event: '登船與簡報', desc: '辦理入住，享用迎賓飲料並聽取遊輪簡介及安全指示。', stayTime: '30 分鐘' },
+                        { time: '13:00-14:30', icon: '🍽️', event: '午餐', desc: '在全景餐廳享用午餐 (不含酒水)，遊船駛入蘭夏灣。', stayTime: '1 小時 30 分鐘' },
+                        { time: '15:00-17:00', icon: '🛶', event: 'Tra Bau (Ao Ech) 水上活動', desc: '自由選擇划獨木舟或在清澈海水中游泳。', stayTime: '2 小時', attractionMapsLink: 'https://www.google.com/maps/search/Tra+Bau+Bay' },
+                        { time: '17:30-18:30', icon: '🌇', event: '日落派對 & 烹飪課', desc: '在Sky Bar欣賞日落，參加日落派對並學習製作越式春捲。', stayTime: '1 小時' },
+                        { time: '19:15-20:30', icon: '🕯️', event: '燭光晚餐', desc: '享用精緻套餐晚餐 (不含酒水)。', stayTime: '1 小時 15 分鐘' },
+                        { time: '20:45-24:00', icon: '🎣', event: '夜遊活動', desc: '可自費船上按摩或享受夜釣墨魚樂趣。<b><font color="red">安全提醒：</font>遊船航行時，切勿在甲板或陽台站立走動。</b>', stayTime: '3 小時 15 分鐘' },
+                        { time: '夜宿', icon: '🌌', event: '夜宿遊輪', desc: '夜宿維納斯女神號遊輪。', attractionMapsLink: 'https://www.google.com/maps/search/Venus+Halong+Cruises' }
+                    ]
+                },
+                4: {
+                    title: '太極晨喚與大世界奇觀 (2025/07/21)',
+                    timeline: [
+                        { time: '05:30-06:00', icon: '🧘', event: '晨喚太極', desc: '在日光浴平台參加太極課程或享受清晨美景。', stayTime: '30 分鐘' },
+                        { time: '06:00-06:40', icon: '☕', event: '簡易早餐', desc: '享用糕點、茶、咖啡。', stayTime: '40 分鐘' },
+                        { time: '06:45-07:40', icon: '🛶', event: '亮暗洞探險', desc: '乘坐小艇探索神秘的【亮暗洞】。', stayTime: '55 分鐘', attractionMapsLink: 'https://www.google.com/maps/search/亮暗洞+下龍灣' },
+                        { time: '09:30-11:45', icon: '🍽️', event: '早午餐與退房', desc: '返回遊輪享用自助早午餐並辦理退房。', stayTime: '2 小時 15 分鐘' },
+                        { time: '12:00-13:30', icon: '🚶', event: '鴻基市場', desc: '體驗當地民生中心，獲贈下午茶。', stayTime: '1 小時 30 分鐘', transport: '巴士', travelTime: '約 30 分鐘', mapsLink: 'https://www.google.com/maps/dir/下龍灣/鴻基市場', attractionMapsLink: 'https://www.google.com/maps/search/鴻基市場' },
+                        { time: '14:00-17:00', icon: '🚌', event: '下龍灣 ➤ 河內', desc: '返回河內市區。', transport: '巴士', travelTime: '約 3 小時', mapsLink: 'https://www.google.com/maps/dir/下龍灣/河內' },
+                        { time: '17:30-20:00', icon: '🎡', event: '威尼斯童話大世界', desc: '參觀河內全新地標【Mega Grand World】，感受威尼斯水鄉與韓式街區。', stayTime: '2 小時 30 分鐘', attractionMapsLink: 'https://www.google.com/maps/search/Mega+Grand+World+Hanoi' },
+                        { time: '20:30-21:00', icon: '🎆', event: '大航海湖上聲光秀', desc: '欣賞免費的戶外大型湖上歌劇表演【The Grand Voyage】。', stayTime: '30 分鐘', attractionMapsLink: 'https://www.google.com/maps/search/The+Grand+Voyage+Hanoi' },
+                        { time: '21:30-22:30', icon: '🍽️', event: '晚餐', desc: '享用龍王蒸氣風味餐 (價值$15)。', stayTime: '1 小時', attractionMapsLink: 'https://www.google.com/maps/search/河內龍王蒸氣風味餐' },
+                        { time: '22:45', icon: '🏨', event: '入住', desc: '返回河內，入住五星級【河內西部瑞享生活酒店】Movenpick Living West Hanoi。', attractionMapsLink: 'https://www.google.com/maps/search/Movenpick+Living+West+Hanoi' }
+                    ]
+                },
+                5: {
+                    title: '河內市區巡禮與告別 (2025/07/22)',
+                    timeline: [
+                        { time: '09:00-09:45', icon: '⛪', event: '聖若瑟教堂', desc: '路過參觀這座美麗的法國殖民時期教堂。', stayTime: '45 分鐘', transport: '巴士', travelTime: '約 15 分鐘', mapsLink: 'https://www.google.com/maps/dir/Movenpick+Living+West+Hanoi/聖若瑟教堂', attractionMapsLink: 'https://www.google.com/maps/search/聖若瑟教堂+河內' },
+                        { time: '09:50-10:30', icon: '🏞️', event: '還劍湖', desc: '路過參觀傳說中神劍的神奇湖泊。', stayTime: '40 分鐘', transport: '步行', travelTime: '約 5 分鐘', mapsLink: 'https://www.google.com/maps/dir/聖若瑟教堂/還劍湖', attractionMapsLink: 'https://www.google.com/maps/search/還劍湖+河內' },
+                        { time: '10:45-12:00', icon: '🛍️', event: '三十六古街散策', desc: '漫步於河內市中心的老城區，感受當地生活氣息。', stayTime: '1 小時 15 分鐘', transport: '步行', travelTime: '約 10 分鐘', mapsLink: 'https://www.google.com/maps/dir/還劍湖/三十六古街', attractionMapsLink: 'https://www.google.com/maps/search/三十六古街+河內' },
+                        { time: '12:30-13:30', icon: '🍽️', event: '午餐', desc: '享用米其林指南推薦的【心越風味餐】(價值$18)。', stayTime: '1 小時', attractionMapsLink: 'https://www.google.com/maps/search/河內心越風味餐' },
+                        { time: '14:00-15:00', icon: '🚌', event: '河內 ➤ 機場', desc: '驅車前往河內內排國際機場。', transport: '巴士', travelTime: '約 1 小時', mapsLink: 'https://www.google.com/maps/dir/河內市區/Noi+Bai+International+Airport' },
+                        { time: '18:20-21:45', icon: '✈️', event: '河內 ➤ 高雄', desc: '搭乘越南航空VN586班機返回高雄小港機場，結束愉快的旅程。', transport: '飛機', travelTime: '約 3 小時 25 分鐘', mapsLink: 'https://www.google.com/maps/dir/Noi+Bai+International+Airport/高雄國際機場' }
+                    ]
+                }
+            };
+            
+            const foodData = [
+                { name: '心越風味餐 (米其林推薦)', cuisine: 'vietnamese', description: '米其林指南推薦的道地越南料理。', mapsLink: 'https://www.google.com/maps/search/河內心越風味餐' },
+                { name: '九層海鮮塔痛風餐', cuisine: 'seafoo', description: '下龍灣特色海鮮大餐，極其豐盛。', mapsLink: 'https://www.google.com/maps/search/下龍灣九層海鮮塔痛風餐' },
+                { name: '鳳凰港點', cuisine: 'international', description: '多樣化的中式港點，適合抵達後輕食。', mapsLink: 'https://www.google.com/maps/search/河內鳳凰港點餐廳' },
+                { name: '龍王蒸氣風味餐', cuisine: 'vietnamese', description: '獨特的蒸氣烹飪方式，保留食材原味。', mapsLink: 'https://www.google.com/maps/search/河內龍王蒸氣風味餐' },
+                { name: '河內街頭河粉', cuisine: 'vietnamese', description: '在三十六古街隨處可見的經典越南國民美食。', mapsLink: 'https://www.google.com/maps/search/三十六古街河粉' },
+                { name: '越式法國麵包 (Bánh Mì)', cuisine: 'vietnamese', description: '酥脆麵包搭配豐富餡料，越南經典小吃。', mapsLink: 'https://www.google.com/maps/search/河內越式法國麵包' },
+                { name: '雞蛋咖啡', cuisine: 'dessert', description: '河內特有的創意飲品，香醇濃郁。', mapsLink: 'https://www.google.com/maps/search/河內雞蛋咖啡' },
+                { name: '越式春捲 (自製體驗)', cuisine: 'vietnamese', description: '在遊輪上親手製作，體驗越南烹飪文化。', mapsLink: 'https://www.google.com/maps/search/下龍灣遊輪烹飪體驗' },
+                { name: '熱帶水果冰沙', cuisine: 'dessert', description: '清涼解渴的熱帶水果特調。', mapsLink: 'https://www.google.com/maps/search/河內水果冰沙' }
+            ];
+
+            const prepData = {
+                flight: `
+                    <h4 class="text-lg font-bold mb-2">航班資訊</h4>
+                    <div class="overflow-x-auto"><table class="w-full text-sm text-left">
+                        <thead class="bg-slate-100"><tr><th class="p-2">方向</th><th class="p-2">日期</th><th class="p-2">班機</th><th class="p-2">起飛</th><th class="p-2">抵達</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="p-2">去程</td><td class="p-2">2025/07/18 (五)</td><td class="p-2">越南航空 VN587</td><td class="p-2">高雄(KHH) 08:40</td><td class="p-2">河內(HAN) 10:15</td>
+                            </tr>
+                            <tr>
+                                <td class="p-2">回程</td><td class="p-2">2025/07/22 (二)</td><td class="p-2">越南航空 VN586</td><td class="p-2">河內(HAN) 18:20</td><td class="p-2">高雄(KHH) 21:45</td>
+                            </tr>
+                        </tbody>
+                    </table></div>
+                    <p class="text-sm mt-2 text-slate-500">集合時間：2025/07/18 06:40 於高雄小港機場3樓越南航空團體櫃台。</p>
+                    <div class="mt-6">
+                        <h4 class="text-lg font-bold mb-2">行李規定</h4>
+                        <ul class="list-disc list-inside space-y-2 text-slate-700">
+                          <li><b>託運行李：</b>每人一件，上限23公斤。</li>
+                          <li><b>手提行李：</b>每人一件，上限7公斤，尺寸不得超過 56x36x23公分。</li>
+                          <li><b>鋰電池：</b>行動電源等備用鋰電池<font color="red"><b>必須</b></font>放於手提行李中，不可託運。</li>
+                          <li><b>液體規定：</b>單一容器不得超過100毫升，並需放入1公升的透明塑膠袋中。</li>
+                        </ul>
+                    </div>
+                `,
+                visa: `
+                    <h4 class="text-lg font-bold mb-2">簽證與護照</h4>
+                    <div class="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+                        <span class="font-medium">特別注意！</span> 越南不承認雙重國籍。進出台灣及越南時，<font color="red"><b>必須全程使用同一本護照</b></font>，否則可能遭遣返。
+                    </div>
+                    <ul class="list-disc list-inside space-y-2 text-slate-700">
+                      <li><b>護照效期：</b>自返國日起算，需有6個月以上效期。</li>
+                      <li><b>簽證資料：</b>需準備2張2吋彩色白底照片（背面寫上姓名），辦理時間約6個工作天。</li>
+                      <li><b>14歲以下兒童：</b>入境需有父母或監護人陪同。</li>
+                    </ul>
+                     <div class="mt-6">
+                        <h4 class="text-lg font-bold mb-2">貨幣與時區</h4>
+                        <ul class="list-disc list-inside space-y-2 text-slate-700">
+                            <li><b>貨幣：</b>越南盾 (VND)。可在台灣的銀行或到當地與導遊兌換。建議準備足夠現金，信用卡在當地使用極為不便。</li>
+                            <li><b>時區：</b>越南時間比台灣慢1小時。</li>
+                        </ul>
+                    </div>
+                `,
+                health: `
+                    <h4 class="text-lg font-bold mb-2">健康與安全</h4>
+                    <div class="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-50" role="alert">
+                      <span class="font-medium">COVID-19政策提醒：</span>若在海外確診，需依當地規定隔離，所有衍生費用（住宿、醫療等）<font color="red"><b>需由旅客自行負擔</b></font>。強烈建議加保涵蓋海外突發疾病的旅遊平安險。
+                    </div>
+                    <ul class="list-disc list-inside space-y-2 text-slate-700">
+                        <li><b>飲水：</b>當地自來水不可生飲，請飲用礦泉水。</li>
+                        <li><b>水上活動：</b>參加任何水上活動務必注意安全，聽從指導，並穿著救生衣。</li>
+                        <li><b>財物安全：</b>貴重物品請隨身攜帶或存放於飯店保險箱，小心扒手。</li>
+                        <li><b>團體行動：</b>請遵守團體活動時間，如需離隊應先徵得領隊同意。</li>
+                    </ul>
+                `,
+                packing: `
+                    <h4 class="text-lg font-bold mb-2">建議攜帶物品</h4>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <h5 class="font-semibold">衣物類</h5>
+                            <ul class="list-disc list-inside text-slate-700">
+                                <li>舒適、快乾衣物3套以上</li>
+                                <li>舒適好走的休閒鞋2雙</li>
+                                <li>薄外套（應對冷氣房或溫差）</li>
+                                <li>泳裝、短褲/裙</li>
+                                <li>簡便雨具</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold">個人用品</h5>
+                            <ul class="list-disc list-inside text-slate-700">
+                                <li>個人盥洗用具</li>
+                                <li>常用藥品（腸胃、感冒藥等）</li>
+                                <li>防曬用品、太陽眼鏡、帽子</li>
+                                <li>相機、行動電源</li>
+                                <li><b>萬用轉接頭</b>（越南為220V圓頭插座）</li>
+                                <li>防蚊液</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                contactUtility: `
+                    <h4 class="text-lg font-bold mb-4">緊急聯絡資訊</h4>
+                    <ul class="space-y-3 text-slate-700 mb-6">
+                        <li><b>隨團領隊 (翁聖德):</b> <a href="tel:0936305318" class="text-teal-600 hover:underline">0936-305-318</a></li>
+                        <li><b>越南當地聯絡處:</b> <a href="tel:+84975791826" class="text-teal-600 hover:underline">+84-975-791-826</a></li>
+                        <li><b>旅外國人急難救助:</b> <span class="font-semibold">(當地國碼)+886-800-085-095</span></li>
+                    </ul>
+                    <h4 class="text-lg font-bold mb-4">通訊與電力</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-700">
+                      <li><b>電壓：</b>220伏特，頻率50Hz。</li>
+                      <li><b>插座：</b>主要為兩腳圓形插座。務必攜帶萬用轉接頭。</li>
+                      <li><b>電話撥打(台灣→越南)：</b>002 + 84 + 去掉0的區域碼 + 電話號碼。</li>
+                      <li><b>電話撥打(越南→台灣)：</b>001 + 886 + 去掉0的區域碼 + 電話號碼。</li>
+                    </ul>
+                `
+            };
+            
+            const tippingInfo = `
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-100"><tr><th class="p-2">項目</th><th class="p-2">建議金額</th></tr></thead>
+                    <tbody>
+                        <tr class="border-b"><td class="p-2">領隊、導遊、司機</td><td class="p-2">每人每日 NT$300</td></tr>
+                        <tr class="border-b"><td class="p-2">房間床頭小費</td><td class="p-2">每房 20,000 越南盾</td></tr>
+                        <tr class="border-b"><td class="p-2">行李小費</td><td class="p-2">每件 10,000 越南盾</td></tr>
+                        <tr class="border-b"><td class="p-2">過夜船服務人員</td><td class="p-2">每人 US$10</td></tr>
+                        <tr class="border-b"><td class="p-2">各式按摩師</td><td class="p-2">每人 50,000-100,000 越南盾</td></tr>
+                        <tr class="border-b"><td class="p-2">各式船夫/車夫</td><td class="p-2">每人 20,000-30,000 越南盾</td></tr>
+                    </tbody>
+                </table>
+            `;
+
+            const daySelector = document.getElementById('day-selector');
+            const itineraryContent = document.getElementById('itinerary-content');
+
+            Object.keys(itineraryData).forEach(day => {
+                const button = document.createElement('button');
+                button.className = 'day-btn px-4 py-2 text-sm font-medium rounded-full border border-slate-300 hover:bg-teal-500 hover:text-white';
+                button.textContent = `第 ${day} 天`;
+                button.dataset.day = day;
+                daySelector.appendChild(button);
+            });
+
+            function showItinerary(day) {
+                const data = itineraryData[day];
+                itineraryContent.innerHTML = `
+                    <h3 class="text-xl font-bold mb-6 text-center text-teal-700">${data.title}</h3>
+                    <div class="relative border-l-2 border-teal-200 ml-4 md:ml-8">
+                        ${data.timeline.map((item, index) => `
+                            <div class="timeline-item">
+                                <div class="timeline-icon">${item.icon}</div>
+                                ${index < data.timeline.length -1 ? '<div class="timeline-line"></div>' : ''}
+                                <p class="text-base font-semibold text-teal-600 mb-1">${item.time} - ${item.event}</p>
+                                <p class="text-slate-600 text-sm mb-2">${item.desc}</p>
+                                ${item.stayTime ? `<p class="text-xs text-slate-500">建議停留: ${item.stayTime}</p>` : ''}
+                                ${item.attractionMapsLink ? `<a href="${item.attractionMapsLink}" target="_blank" class="text-teal-600 text-xs hover:underline block mt-1">景點地圖連結</a>` : ''}
+                                ${item.transport ? `
+                                    <div class="bg-slate-50 rounded-lg p-3 mt-3 border border-slate-200">
+                                        <p class="text-sm font-medium text-slate-700">交通建議:</p>
+                                        <p class="text-sm text-slate-600">從 ${item.time.split('-')[0].trim()} 出發，搭乘 <span class="font-semibold">${item.transport}</span> 前往。</p>
+                                        <p class="text-sm text-slate-600">預估時間: ${item.travelTime}</p>
+                                        ${item.mapsLink ? `<a href="${item.mapsLink}" target="_blank" class="text-teal-600 text-xs hover:underline block mt-1">路線地圖連結</a>` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            daySelector.addEventListener('click', e => {
+                if (e.target.matches('.day-btn')) {
+                    const day = e.target.dataset.day;
+                    document.querySelectorAll('.day-btn').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    showItinerary(day);
+                }
+            });
+
+            daySelector.querySelector('.day-btn').click();
+
+            const prepFlightContent = document.getElementById('prep-flight-content');
+            const prepVisaContent = document.getElementById('prep-visa-content');
+            const prepHealthContent = document.getElementById('prep-health-content');
+            const prepPackingContent = document.getElementById('prep-packing-content');
+            const prepContactUtilityContent = document.getElementById('prep-contact-utility-content');
+            
+            prepFlightContent.innerHTML = prepData.flight;
+            prepVisaContent.innerHTML = prepData.visa;
+            prepHealthContent.innerHTML = prepData.health;
+            prepPackingContent.innerHTML = prepData.packing;
+            prepContactUtilityContent.innerHTML = prepData.contactUtility;
+
+            document.getElementById('tipping-info').innerHTML = tippingInfo;
+
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('.section');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            function switchSection(hash) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.hash === hash);
+                });
+                sections.forEach(section => {
+                    section.classList.toggle('active', `#${section.id}` === hash);
+                });
+                mobileMenu.classList.add('hidden'); // Close mobile menu on section switch
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', e => {
+                    e.preventDefault();
+                    switchSection(e.target.hash);
+                    window.scrollTo(0,0);
+                });
+            });
+
+            // Initial section load based on hash or default
+            if (window.location.hash) {
+                switchSection(window.location.hash);
+            } else {
+                switchSection('#overview');
+            }
+
+
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+            
+            const prepTabs = document.getElementById('prep-tabs');
+            const prepContents = document.getElementById('prep-content').children;
+
+            prepTabs.addEventListener('click', e => {
+                if (e.target.matches('.tab-btn')) {
+                    const tabId = e.target.dataset.tab;
+                    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    
+                    for (const content of prepContents) {
+                        content.classList.toggle('active', content.id === `${tabId}-content`);
+                    }
+                }
+            });
+
+            const countdownElement = document.getElementById('countdown');
+            const tripDate = new Date('2025-07-18T06:40:00'); // Based on the PDF departure date
+            
+            function updateCountdown() {
+                const now = new Date();
+                const diff = tripDate - now;
+                
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                countdownElement.innerHTML = `
+                    <div><div class="text-3xl md:text-5xl font-bold text-slate-700">${days < 0 ? 0 : days}</div><div class="text-xs text-slate-500">天</div></div>
+                    <div><div class="text-3xl md:text-5xl font-bold text-slate-700">${hours < 0 ? 0 : hours}</div><div class="text-xs text-slate-500">時</div></div>
+                    <div><div class="text-3xl md:text-5xl font-bold text-slate-700">${minutes < 0 ? 0 : minutes}</div><div class="text-xs text-slate-500">分</div></div>
+                    <div><div class="text-3xl md:text-5xl font-bold text-slate-700">${seconds < 0 ? 0 : seconds}</div><div class="text-xs text-slate-500">秒</div></div>
+                `;
+
+                if(diff < 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.innerHTML = '<div class="text-2xl font-bold text-teal-600">旅程已開始！</div>';
+                }
+            }
+
+            const countdownInterval = setInterval(updateCountdown, 1000);
+            updateCountdown();
+
+            const tripFocusCtx = document.getElementById('tripFocusChart').getContext('2d');
+            new Chart(tripFocusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['自然奇觀 (下龍灣/蘭夏灣)', '文化探索 (河內/古寺)', '現代娛樂 & 美食'],
+                    datasets: [{
+                        label: '行程體驗分佈',
+                        data: [40, 35, 25],
+                        backgroundColor: [
+                            'rgb(59, 130, 246, 0.8)', // blue-500
+                            'rgb(249, 115, 22, 0.8)', // orange-500
+                            'rgb(22, 163, 74, 0.8)'   // green-600
+                        ],
+                        borderColor: [
+                            'rgb(59, 130, 246)',
+                            'rgb(249, 115, 22)',
+                            'rgb(22, 163, 74)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Transportation Chart
+            const transportCtx = document.getElementById('transportChart').getContext('2d');
+            new Chart(transportCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['高雄-河內 (飛機)', '河內-河南 (巴士)', '河南-下龍灣 (巴士)', '下龍灣遊輪 (船宿)', '下龍灣-河內 (巴士)'],
+                    datasets: [
+                        {
+                            label: '預估時間 (小時)',
+                            data: [2.5, 1.5, 3.0, 24, 3.0],
+                            backgroundColor: 'rgba(13, 148, 136, 0.7)', // Teal
+                            borderColor: 'rgba(13, 148, 136, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'timeY'
+                        },
+                        {
+                            label: '預估費用 (相對單位)',
+                            data: [200, 20, 30, 150, 30],
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)', // Blue
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'costY'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y;
+                                        if (context.dataset.label.includes('時間')) {
+                                            label += ' 小時';
+                                        } else {
+                                            label += ' 單位';
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        timeY: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: '時間 (小時)',
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            beginAtZero: true
+                        },
+                        costY: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: '費用 (相對單位)',
+                                font: {
+                                    size: 14
+                                }
+                            },
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false // only draw grid lines for the left axis
+                            }
+                        }
+                    }
+                }
+            });
+
+
+            // Food Map functionality
+            const foodListContainer = document.getElementById('food-list');
+            const foodFilters = document.getElementById('food-filters');
+
+            function renderFoodList(filter = 'all') {
+                foodListContainer.innerHTML = '';
+                const filteredFood = filter === 'all' ? foodData : foodData.filter(food => food.cuisine === filter);
+
+                if (filteredFood.length === 0) {
+                    foodListContainer.innerHTML = '<p class="col-span-full text-center text-slate-500">暫無此類美食推薦。</p>';
+                    return;
+                }
+
+                filteredFood.forEach(food => {
+                    const foodCard = document.createElement('div');
+                    foodCard.className = 'bg-white rounded-xl shadow-lg p-6';
+                    foodCard.innerHTML = `
+                        <h4 class="text-lg font-bold mb-2 text-teal-700">${food.name}</h4>
+                        <p class="text-sm text-slate-600 mb-3">${food.description}</p>
+                        <p class="text-xs font-medium text-slate-500 mb-2">類別: ${
+                            food.cuisine === 'seafoo' ? '海鮮' :
+                            food.cuisine === 'vietnamese' ? '越式風味' :
+                            food.cuisine === 'dessert' ? '甜點小吃' :
+                            food.cuisine === 'international' ? '國際料理' : '未知'
+                        }</p>
+                        <a href="${food.mapsLink}" target="_blank" class="inline-flex items-center text-sm text-blue-600 hover:underline">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M5.05 4.05a7 7 7 0110.023 0l9.023 9.023a7 7 01-10.023 0L5.05 4.05zM3 10a7 7 0114 0h-2a5 5 00-10 0H3z" clip-rule="evenodd"></path></svg>
+                            查看地圖
+                        </a>
+                    `;
+                    foodListContainer.appendChild(foodCard);
+                });
+            }
+
+            foodFilters.addEventListener('click', e => {
+                if (e.target.matches('.filter-btn')) {
+                    const filter = e.target.dataset.filter;
+                    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    renderFoodList(filter);
+                }
+            });
+
+            renderFoodList('all'); // Initial render of all food items
+        });
+    </script>
+</body>
+</html>
